@@ -1,0 +1,47 @@
+MD2GBA P148 STATEFUZZ validation — 2026-09-29
+
+State serialization check
+-------------------------
+ROM: user-supplied Sonic 1 test image
+Policy: neutral/no input
+A: reset -> 120 frames
+B: reset -> 60 frames -> M2GSTATE save -> reload -> 60 frames
+Result: serialized frame-120 machine state byte-for-byte identical (cmp PASS).
+
+Coverage-guided scheduler smoke
+-------------------------------
+Fresh SQLite cache; deliberately tiny campaigns.
+workers=4
+base_frames=120
+max_frames=240
+state exploration enabled
+reset_fraction=0.25
+corpus cap=32
+
+Epoch 0: reset starts only
+- observed PCs: 463
+- edges: 506
+- promoted states: 8
+
+Epoch 1: 3/4 starts from saved states
+- +436 PCs
+- +499 edges
+- merged observed PCs: 899
+- merged edges: 1005
+- state corpus depth: 2
+
+Short validation session final corpus
+- active states: 32
+- max lineage depth: 6
+- saved-state-start campaigns: 78
+- saved-state campaigns with new PC and/or edge coverage: 35
+
+Target build
+------------
+SONIC1_P148_STATEFUZZ_VALIDATION.gba
+bytes: 4,344,300
+AOT instruction entries: 7,466
+AOT regions/pages: 64
+Target audio: intentionally silent
+
+No SHA-256 computation performed.

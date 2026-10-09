@@ -1,0 +1,42 @@
+MD2GBA P150 PROFILEMAP validation
+=================================
+Date: 2026-10-05
+Base: P149 AOTGRINDER GUI
+Target: SONIC1_P150_PROFILEMAP_VALIDATION.gba
+
+BUILD
+-----
+GBA bytes: 4653256
+AOT PCs: 8,474
+AOT regions/pages: 71
+Undefined ELF symbols: none
+GBA complement byte: 0x8F; recomputed 0x8F; PASS
+IWRAM: 25,996 / 28,672 bytes; 2,676 free
+EWRAM .bss: 256,132 / 262,144 bytes; 6,012 free
+
+PROFILE-GENERATED VDP
+---------------------
+Renderer: profiled_tilemap_priority
+Enabled: True
+Observed VDP tile-set signatures: 877
+Mapping profiles generated: 1
+Observed tile-set coverage ratio: 1.0
+Observed maximum Genesis BG source ID: 1934
+Mapping 0 slots: 758
+Mapping 0 profiled sets: 877
+Mapping 0 source ID range: 0..1934
+
+SEMANTIC SAFETY
+---------------
+- Mapping selection is driven by full live Plane A/B source-pattern masks.
+- Unsupported geometry/window/shadow/column-V-scroll rejects compiled path.
+- A new source outside the active mapping triggers full map reselection.
+- If no generated mapping covers the scene, target returns to canonical fallback.
+- Audio intentionally disabled in this validation ROM.
+
+KNOWN LIMITATIONS
+-----------------
+- 1:1 cropped presentation; not yet final 320x224 -> 240x160 fit.
+- Dynamic dirty pattern pixel conversion still occurs on GBA.
+- Sprite path remains existing SAT -> OAM publisher.
+- No mGBA target runtime available in this build container; user-side test required.

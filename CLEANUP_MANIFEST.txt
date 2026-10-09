@@ -1,0 +1,40 @@
+MD2GBA P142 PSCDEEPFAST CLEANUP MANIFEST
+Generated: 2026-09-25
+
+Original files: 3018
+Kept files: 1156
+Original uncompressed payload: 425.40 MiB
+Kept original payload: 144.72 MiB
+Removed payload: 280.67 MiB
+
+INTENTIONALLY REMOVED / PRUNED
+- gen_p107_loadfast/, gen_p108_bulk/, gen_p109/: superseded full generated-code generations not referenced by the P142 build.
+- gen_p116/: pruned from a full duplicate generated tree to only dispatch metadata + pages 0106, 0108, 016c, 01aa, 01ab, which are the P116 files P142 compiles/tests directly.
+- build_p134/: removed transient host-test binaries and non-cache objects; retained only build_p134/cold_pages/.
+- out_p134/: removed older P140/P141 ROM/ELF/map artifacts and bulky historical replay/hash outputs; retained current P142 artifacts and small useful build/validation metadata.
+- Root: removed old phase/P134 build scripts, validation files, backup snapshots (*.orig, *.p103, *.p134*), old SHA files, and old resume state not needed to reproduce/resume P142.
+
+LARGEST REMOVED TOP-LEVEL GROUPS
+- gen_p109: 414 files, 53.27 MiB
+- gen_p108_bulk: 414 files, 53.26 MiB
+- gen_p107_loadfast: 414 files, 53.26 MiB
+- out_p134: 17 files, 52.89 MiB
+- gen_p116: 405 files, 51.89 MiB
+- build_p134: 68 files, 14.76 MiB
+- md2gba_gba_projected.c.p139a_base: 1 files, 0.11 MiB
+- p134_notes: 4 files, 0.06 MiB
+- md2gba_gba_projected.c.p134l: 1 files, 0.06 MiB
+- md2gba_gba_projected.c.p134k: 1 files, 0.05 MiB
+- md2gba_bus.c.orig: 1 files, 0.04 MiB
+- P134G_TO_P134H_QUALITYFAST.patch: 1 files, 0.04 MiB
+- build_p141_pscarmfast.sh: 1 files, 0.03 MiB
+- build_p140_pscachefast.sh: 1 files, 0.03 MiB
+- build_p139a_prebuildfast.sh: 1 files, 0.03 MiB
+- build_p138_multifast.sh: 1 files, 0.03 MiB
+- docs: 6 files, 0.02 MiB
+- build_p137_pscfast.sh: 1 files, 0.02 MiB
+- build_p136a_noblackfast.sh: 1 files, 0.02 MiB
+- P109_SOURCE_DELTA.patch: 1 files, 0.02 MiB
+
+NO BUILD OR REGRESSION TESTS WERE RUN DURING CLEANUP.
+The cleanup only repackaged/pruned the supplied completed checkpoint; the original P142 validation status is preserved in P142_RESUME_README.md and P142_PROGRESS.json.

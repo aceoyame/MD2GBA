@@ -1,0 +1,165 @@
+#ifndef MD2GBA_BUS_H
+#define MD2GBA_BUS_H
+#include <stddef.h>
+#include <stdint.h>
+#include "md2gba_audio.h"
+
+enum {
+    MD2GBA_PAD_UP    = 1u << 0,
+    MD2GBA_PAD_DOWN  = 1u << 1,
+    MD2GBA_PAD_LEFT  = 1u << 2,
+    MD2GBA_PAD_RIGHT = 1u << 3,
+    MD2GBA_PAD_B     = 1u << 4,
+    MD2GBA_PAD_C     = 1u << 5,
+    MD2GBA_PAD_A     = 1u << 6,
+    MD2GBA_PAD_START = 1u << 7
+};
+
+typedef enum Md2GbaVdpTarget {
+    MD2GBA_VDP_NONE = 0,
+    MD2GBA_VDP_VRAM,
+    MD2GBA_VDP_CRAM,
+    MD2GBA_VDP_VSRAM
+} Md2GbaVdpTarget;
+
+typedef struct Md2GbaVdp {
+    uint16_t data_word;
+    uint16_t control_word;
+    uint32_t control_long;
+    uint32_t data_writes;
+    uint32_t control_writes;
+    uint8_t regs[0x20];
+    uint8_t vram[0x10000];
+    uint16_t cram[0x40];
+    uint16_t vsram[0x40];
+    uint16_t address;
+    uint8_t code;
+    uint8_t pending_control;
+    uint16_t first_control_word;
+    Md2GbaVdpTarget target;
+    uint32_t register_writes;
+    uint32_t dma_transfers;
+    uint32_t dma_words;
+    uint32_t unsupported_dma_modes;
+    uint8_t dma_busy;
+    /* Renderer-facing dirtiness is part of the generic virtual VDP, not a
+       title profile. VRAM is tracked in 256-byte pages (256 bits total). */
+    uint32_t vram_dirty_pages[8];
+    uint32_t vram_dirty_tiles[64];
+    uint32_t cram_dirty_mask[2];
+    uint32_t vsram_dirty_mask[2];
+    uint32_t regs_dirty_mask;
+    uint32_t vram_epoch, cram_epoch, vsram_epoch, regs_epoch;
+    /* Phase 50 diagnostic trace: first raw VDP port events. Appended so existing field offsets remain stable. */
+    uint8_t trace_type[32]; /* 1=control, 2=data */
+    uint16_t trace_value[32];
+    uint16_t trace_addr[32];
+    uint8_t trace_code[32], trace_target[32], trace_pending[32];
+    uint32_t trace_pc[32];
+    uint8_t trace_count;
+} Md2GbaVdp;
+
+typedef struct Md2GbaBus {
+    const uint8_t *rom;
+    size_t rom_size;
+    uint8_t wram[0x10000];
+    uint8_t z80_ram[0x2000];
+    /* Cartridge SRAM is discovered from the standard Genesis ROM header.
+       The fixed backing store is a bring-up choice; a later GBA persistence
+       backend can map this logical save memory to SRAM/Flash hardware. */
+    uint8_t sram[0x10000];
+    uint32_t sram_start, sram_end;
+    uint32_t sram_size;
+    uint8_t sram_present, sram_control, sram_lane_stride;
+    uint8_t pad1_data, pad2_data;
+    uint16_t pad_held[2];
+    uint8_t pad1_control, pad2_control, expansion_control;
+    uint8_t hw_version;
+    uint8_t tmss_unlocked;
+    uint8_t vblank_active, hblank_active;
+    uint16_t z80_bus_request, z80_reset;
+    /* Minimal generic YM2612 register/status model. Status reads currently
+       report not-busy; register/data writes are latched for later audio backends. */
+    uint8_t ym2612_addr[2], ym2612_data[2];
+    uint32_t ym2612_writes;
+    Md2GbaAudio audio;
+    Md2GbaVdp vdp;
+    uint32_t unsupported_reads, unsupported_writes;
+} Md2GbaBus;
+
+void md2gba_bus_init(Md2GbaBus *bus, const uint8_t *rom, size_t rom_size);
+void md2gba_bus_set_vblank(Md2GbaBus *bus, int active);
+void md2gba_bus_set_audio_sink(Md2GbaBus *bus, const Md2GbaAudioSink *sink);
+void md2gba_bus_set_pad(Md2GbaBus *bus, unsigned port, uint16_t held);
+uint16_t md2gba_bus_get_pad(const Md2GbaBus *bus, unsigned port);
+void md2gba_vdp_clear_dirty(Md2GbaVdp *vdp);
+int md2gba_vdp_vram_range_dirty(const Md2GbaVdp *vdp,uint16_t start,unsigned length);
+uint16_t md2gba_vdp_status(const Md2GbaBus *bus);
+uint8_t  md2gba_read8(Md2GbaBus *bus, uint32_t address);
+void md2gba_write8(Md2GbaBus *bus, uint32_t address, uint8_t value);
+
+/*
+ * Phase 10b: keep the uncommon hardware/overlay cases out of the hot path.
+ * The slow functions are the canonical bus implementation. The public wide
+ * helpers are tiny always-inline front ends so translated code can read/write
+ * ordinary 68K WRAM without paying another Thumb function call and full bus
+ * decode on every word/long access.
+ */
+uint16_t md2gba_read16_slow(Md2GbaBus *bus, uint32_t address);
+uint32_t md2gba_read32_slow(Md2GbaBus *bus, uint32_t address);
+void md2gba_write16_slow(Md2GbaBus *bus, uint32_t address, uint16_t value);
+void md2gba_write32_slow(Md2GbaBus *bus, uint32_t address, uint32_t value);
+
+#if defined(__GNUC__) || defined(__clang__)
+#define MD2GBA_INLINE static __attribute__((always_inline)) inline
+#else
+#define MD2GBA_INLINE static inline
+#endif
+
+MD2GBA_INLINE int md2gba_wram_unshadowed(const Md2GbaBus *bus, uint32_t a, uint32_t end) {
+    if(!bus->sram_present || !(bus->sram_control & 1u)) return 1;
+    return end < bus->sram_start || a > bus->sram_end;
+}
+
+MD2GBA_INLINE uint16_t md2gba_read16(Md2GbaBus *bus, uint32_t address) {
+    uint32_t a=address & 0x00FFFFFFu;
+    if(a>=0xFF0000u && a<=0xFFFFFEu && md2gba_wram_unshadowed(bus,a,a+1u)) {
+        uint32_t o=a & 0xFFFFu;
+        return (uint16_t)(((uint16_t)bus->wram[o]<<8) | bus->wram[o+1u]);
+    }
+    return md2gba_read16_slow(bus,a);
+}
+
+MD2GBA_INLINE uint32_t md2gba_read32(Md2GbaBus *bus, uint32_t address) {
+    uint32_t a=address & 0x00FFFFFFu;
+    if(a>=0xFF0000u && a<=0xFFFFFCu && md2gba_wram_unshadowed(bus,a,a+3u)) {
+        uint32_t o=a & 0xFFFFu;
+        return ((uint32_t)bus->wram[o]<<24) | ((uint32_t)bus->wram[o+1u]<<16) |
+               ((uint32_t)bus->wram[o+2u]<<8) | bus->wram[o+3u];
+    }
+    return md2gba_read32_slow(bus,a);
+}
+
+MD2GBA_INLINE void md2gba_write16(Md2GbaBus *bus, uint32_t address, uint16_t value) {
+    uint32_t a=address & 0x00FFFFFFu;
+    if(a>=0xFF0000u && a<=0xFFFFFEu && md2gba_wram_unshadowed(bus,a,a+1u)) {
+        uint32_t o=a & 0xFFFFu;
+        bus->wram[o]=(uint8_t)(value>>8); bus->wram[o+1u]=(uint8_t)value;
+        return;
+    }
+    md2gba_write16_slow(bus,a,value);
+}
+
+MD2GBA_INLINE void md2gba_write32(Md2GbaBus *bus, uint32_t address, uint32_t value) {
+    uint32_t a=address & 0x00FFFFFFu;
+    if(a>=0xFF0000u && a<=0xFFFFFCu && md2gba_wram_unshadowed(bus,a,a+3u)) {
+        uint32_t o=a & 0xFFFFu;
+        bus->wram[o]=(uint8_t)(value>>24); bus->wram[o+1u]=(uint8_t)(value>>16);
+        bus->wram[o+2u]=(uint8_t)(value>>8); bus->wram[o+3u]=(uint8_t)value;
+        return;
+    }
+    md2gba_write32_slow(bus,a,value);
+}
+
+#undef MD2GBA_INLINE
+#endif
